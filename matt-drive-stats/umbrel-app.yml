@@ -2,7 +2,7 @@ manifestVersion: 1
 id: matt-drive-stats
 category: utilities
 name: Drive Stats
-version: "1.0.0"
+version: "1.2.0"
 tagline: Usage of every drive on your Umbrel, right on the home screen
 description: >-
   Shows the name, percent used and free space of your main drive and every
@@ -19,27 +19,61 @@ path: ""
 defaultUsername: ""
 defaultPassword: ""
 widgets:
-  - id: "externals"
+  - id: "bars"
     type: "four-stats"
     refresh: "30s"
-    endpoint: "web:8080/widgets/externals"
+    endpoint: "web:8080/widgets/bars"
     link: ""
     example:
       type: "four-stats"
       link: ""
       items:
-        - title: "Seagate1"
-          text: "48%"
+        - title: "Seagate1 48%"
+          text: "█████░░░░░"
           subtext: "921G free"
-        - title: "Seagate2"
-          text: "48%"
+        - title: "Seagate2 48%"
+          text: "█████░░░░░"
           subtext: "921G free"
-        - title: "T7"
-          text: "55%"
+        - title: "T7 55%"
+          text: "██████░░░░"
           subtext: "421G free"
-        - title: "btc-node"
-          text: "97%"
+        - title: "btc-node 97%"
+          text: "██████████"
           subtext: "33G free"
+  - id: "gauges-1"
+    type: "two-stats-with-guage"
+    refresh: "30s"
+    endpoint: "web:8080/widgets/gauges-1"
+    link: ""
+    example:
+      type: "two-stats-with-guage"
+      link: ""
+      items:
+        - title: "Seagate1"
+          text: "48"
+          subtext: "%"
+          progress: 0.48
+        - title: "Seagate2"
+          text: "48"
+          subtext: "%"
+          progress: 0.48
+  - id: "gauges-2"
+    type: "two-stats-with-guage"
+    refresh: "30s"
+    endpoint: "web:8080/widgets/gauges-2"
+    link: ""
+    example:
+      type: "two-stats-with-guage"
+      link: ""
+      items:
+        - title: "T7"
+          text: "55"
+          subtext: "%"
+          progress: 0.55
+        - title: "btc-node"
+          text: "97"
+          subtext: "%"
+          progress: 0.97
   - id: "all"
     type: "list"
     refresh: "30s"

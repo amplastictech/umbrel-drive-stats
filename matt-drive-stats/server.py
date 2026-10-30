@@ -40,7 +40,7 @@ def drives():
     except OSError:
         pass
     try:
-        names = sorted(os.listdir(ROOT), key=str.lower)
+        names = sorted(os.listdir(ROOT))  # case-sensitive: Seagate1, Seagate2, T7, btc-node
     except OSError:
         names = []
     for name in names:
@@ -53,9 +53,15 @@ def drives():
     return out
 
 
-def externals_widget():
+def text_bar(pct, width=10):
+    filled = min(width, max(0, round(pct * width / 100)))
+    return "█" * filled + "░" * (width - filled)
+
+
+def bars_widget():
+    """Four tiles, one per external drive, each with a text progress bar."""
     items = [
-        {"title": d["name"], "text": f'{d["pct"]}%', "subtext": f'{human(d["free"])} free'}
+        {"title": f'{d["name"]} {d["pct"]}%', "text": text_bar(d["pct"]), "subtext": f'{human(d["free"])} free'}
         for d in drives() if d["name"] != "Main"
     ][:4]
     while len(items) < 4:
@@ -63,12 +69,24 @@ def externals_widget():
     return {"type": "four-stats", "link": "", "items": items}
 
 
+def gauge_widget(pair):
+    """Two ring gauges: externals 1-2 for pair 0, externals 3-4 for pair 1."""
+    ext = [d for d in drives() if d["name"] != "Main"][pair * 2:pair * 2 + 2]
+    items = [
+        {"title": d["name"], "text": str(d["pct"]), "subtext": "%", "progress": d["pct"] / 100}
+        for d in ext
+    ]
+    while len(items) < 2:
+        items.append({"title": "-", "text": "-", "subtext": "", "progress": 0})
+    return {"type": "two-stats-with-guage", "link": "", "items": items}
+
+
 def all_widget():
     return {
         "type": "list",
         "link": "",
         "items": [
-            {"text": f'{d["name"]}  {d["pct"]}%', "subtext": f'{human(d["free"])} free of {human(d["total"])}'}
+            {"text": f'{d["name"]}  {d["pct"]}%', "subtext": f'{text_bar(d["pct"])}  {human(d["free"])} free of {human(d["total"])}'}
             for d in drives()
         ],
         "noItemsText": "No drives found",
@@ -109,8 +127,12 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split("?")[0].rstrip("/")
-        if path == "/widgets/externals":
-            self._send(json.dumps(externals_widget()), "application/json")
+        if path == "/widgets/bars":
+            self._send(json.dumps(bars_widget()), "application/json")
+        elif path == "/widgets/gauges-1":
+            self._send(json.dumps(gauge_widget(0)), "application/json")
+        elif path == "/widgets/gauges-2":
+            self._send(json.dumps(gauge_widget(1)), "application/json")
         elif path == "/widgets/all":
             self._send(json.dumps(all_widget()), "application/json")
         elif path == "/api/drives":
