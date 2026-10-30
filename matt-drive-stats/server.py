@@ -53,7 +53,7 @@ def drives():
     return out
 
 
-def text_bar(pct, width=10):
+def text_bar(pct, width=6):
     filled = min(width, max(0, round(pct * width / 100)))
     return "█" * filled + "░" * (width - filled)
 
