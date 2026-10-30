@@ -1,0 +1,59 @@
+manifestVersion: 1
+id: matt-drive-stats
+category: utilities
+name: Drive Stats
+version: "1.0.0"
+tagline: Usage of every drive on your Umbrel, right on the home screen
+description: >-
+  Shows the name, percent used and free space of your main drive and every
+  external drive, as home screen widgets and on a simple page.
+  Read-only: it never writes to any drive.
+developer: Matt
+website: ""
+dependencies: []
+repo: ""
+support: ""
+port: 8478
+gallery: []
+path: ""
+defaultUsername: ""
+defaultPassword: ""
+widgets:
+  - id: "externals"
+    type: "four-stats"
+    refresh: "30s"
+    endpoint: "web:8080/widgets/externals"
+    link: ""
+    example:
+      type: "four-stats"
+      link: ""
+      items:
+        - title: "Seagate1"
+          text: "48%"
+          subtext: "921G free"
+        - title: "Seagate2"
+          text: "48%"
+          subtext: "921G free"
+        - title: "T7"
+          text: "55%"
+          subtext: "421G free"
+        - title: "btc-node"
+          text: "97%"
+          subtext: "33G free"
+  - id: "all"
+    type: "list"
+    refresh: "30s"
+    endpoint: "web:8080/widgets/all"
+    link: ""
+    example:
+      type: "list"
+      link: ""
+      items:
+        - text: "Main  37%"
+          subtext: "289G free of 456G"
+        - text: "Seagate1  48%"
+          subtext: "921G free of 1.8T"
+      noItemsText: "No drives found"
+releaseNotes: ""
+submitter: Matt
+submission: ""

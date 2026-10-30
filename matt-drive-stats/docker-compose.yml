@@ -1,0 +1,22 @@
+version: "3.7"
+
+services:
+  app_proxy:
+    environment:
+      APP_HOST: matt-drive-stats_web_1
+      APP_PORT: 8080
+
+  web:
+    image: python:3.12-alpine
+    restart: on-failure
+    command: ["python", "-u", "/app/server.py"]
+    volumes:
+      - ${APP_DATA_DIR}/server.py:/app/server.py:ro
+      # Read-only view of the external drives. rslave lets drives that are
+      # plugged in or remounted later show up without restarting the app.
+      - type: bind
+        source: ${UMBREL_ROOT}/external
+        target: /external
+        read_only: true
+        bind:
+          propagation: rslave
