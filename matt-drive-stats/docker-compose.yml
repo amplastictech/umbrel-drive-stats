@@ -84,7 +84,7 @@ services:
             ][:4]
             while len(items) < 4:
                 items.append({"title": "-", "text": "-", "subtext": ""})
-            return {"type": "four-stats", "link": "", "items": items}
+            return {"type": "four-stats", "link": "", "refresh": "30s", "items": items}
 
 
         def gauge_widget(pair):
@@ -96,12 +96,13 @@ services:
             ]
             while len(items) < 2:
                 items.append({"title": "-", "text": "-", "subtext": "", "progress": 0})
-            return {"type": "two-stats-with-guage", "link": "", "items": items}
+            return {"type": "two-stats-with-guage", "link": "", "refresh": "30s", "items": items}
 
 
         def all_widget():
             return {
                 "type": "list",
+                "refresh": "30s",
                 "link": "",
                 "items": [
                     {"text": f'{d["name"]}  {d["pct"]}%', "subtext": f'{text_bar(d["pct"])}  {human(d["free"])} free of {human(d["total"])}'}

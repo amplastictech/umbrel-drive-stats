@@ -2,7 +2,7 @@ manifestVersion: 1
 id: matt-drive-stats
 category: utilities
 name: Drive Stats
-version: "1.3.0"
+version: "1.3.1"
 tagline: Usage of every drive on your Umbrel, right on the home screen
 description: >-
   Shows the name, percent used and free space of your main drive and every
