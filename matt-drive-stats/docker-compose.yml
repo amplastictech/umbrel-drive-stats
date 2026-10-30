@@ -23,10 +23,63 @@ services:
         import html
         import json
         import os
+        import time
         from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
         ROOT = os.environ.get("DRIVES_ROOT", "/external")
         PORT = int(os.environ.get("PORT", "8080"))
+        WATCHDOG_STATUS = os.environ.get("WATCHDOG_STATUS", "/watchdog/status.json")
+        STALE_SECONDS = 6 * 60  # watchdog runs every 2 min; older than this means it stopped
+
+
+        def ago(epoch):
+            if not epoch:
+                return "never"
+            s = max(0, int(time.time() - epoch))
+            if s < 90:
+                return "just now"
+            if s < 3600:
+                return f"{s // 60}m ago"
+            if s < 86400 * 2:
+                return f"{s // 3600}h ago"
+            return f"{s // 86400}d ago"
+
+
+        def watchdog():
+            """Summary of the host watchdog's last run, from its status file."""
+            try:
+                with open(WATCHDOG_STATUS) as f:
+                    st = json.load(f)
+            except (OSError, ValueError):
+                return {"state": "missing", "label": "Not installed", "problems": [], "last": 0,
+                        "mirror": "unknown", "mirror_last": 0}
+            stale = time.time() - st.get("last_run", 0) > STALE_SECONDS
+            problems = st.get("problems", [])
+            if stale:
+                state, label = "stale", "Not running"
+            elif problems:
+                state, label = "problem", f'{len(problems)} issue{"s" if len(problems) > 1 else ""}'
+            else:
+                state, label = "ok", "OK"
+            m = "running" if st.get("mirror_state") == "activating" else (
+                "OK" if st.get("mirror_result") == "success" else st.get("mirror_result", "unknown"))
+            return {"state": state, "label": label, "problems": problems, "last": st.get("last_run", 0),
+                    "mirror": m, "mirror_last": st.get("mirror_last", 0)}
+
+
+        def status_widget():
+            w = watchdog()
+            icon = "shield-check" if w["state"] == "ok" else "alert-triangle"
+            return {
+                "type": "three-stats",
+                "link": "",
+                "refresh": "30s",
+                "items": [
+                    {"icon": icon, "subtext": "Watchdog", "text": w["label"]},
+                    {"icon": "clock", "subtext": "Last check", "text": ago(w["last"])},
+                    {"icon": "copy", "subtext": "Mirror", "text": f'{w["mirror"]} · {ago(w["mirror_last"])}'},
+                ],
+            }
 
 
         def human(n):
@@ -113,6 +166,13 @@ services:
 
 
         def page():
+            w = watchdog()
+            wcolor = {"ok": "#3fa66b", "problem": "#d64545", "stale": "#d64545"}.get(w["state"], "#888")
+            wd = (f'<div class="wd"><span class="dot" style="background:{wcolor}"></span>'
+                  f'<b>Watchdog: {html.escape(w["label"])}</b>'
+                  f'<span class="m">last check {ago(w["last"])} &middot; mirror {html.escape(w["mirror"])}, {ago(w["mirror_last"])}</span></div>')
+            if w["problems"]:
+                wd += "<ul>" + "".join(f"<li>{html.escape(p)}</li>" for p in w["problems"]) + "</ul>"
             rows = []
             for d in drives():
                 color = "#d64545" if d["pct"] >= 90 else "#e0a030" if d["pct"] >= 75 else "#3fa66b"
@@ -132,7 +192,10 @@ services:
         .row{{margin-bottom:18px}} .top{{display:flex;justify-content:space-between;gap:12px;margin-bottom:6px}}
         .top span{{color:var(--muted)}} .bar{{height:10px;background:var(--track);border-radius:5px;overflow:hidden}}
         .bar div{{height:100%;border-radius:5px}}
-        </style></head><body><main><h1>Drive Stats</h1>{''.join(rows) or '<p>No drives found</p>'}</main></body></html>"""
+        .wd{{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 24px}}
+        .wd .m{{color:var(--muted)}} .dot{{width:10px;height:10px;border-radius:50%;display:inline-block}}
+        ul{{margin:-14px 0 24px;color:var(--muted)}}
+        </style></head><body><main><h1>Drive Stats</h1>{wd}{''.join(rows) or '<p>No drives found</p>'}</main></body></html>"""
 
 
         class Handler(BaseHTTPRequestHandler):
@@ -146,7 +209,9 @@ services:
 
             def do_GET(self):
                 path = self.path.split("?")[0].rstrip("/")
-                if path == "/widgets/bars":
+                if path == "/widgets/status":
+                    self._send(json.dumps(status_widget()), "application/json")
+                elif path == "/widgets/bars":
                     self._send(json.dumps(bars_widget()), "application/json")
                 elif path == "/widgets/gauges-1":
                     self._send(json.dumps(gauge_widget(0)), "application/json")
@@ -174,3 +239,5 @@ services:
         read_only: true
         bind:
           propagation: rslave
+      # Status file written by the host drive-watchdog script (read-only here).
+      - ${UMBREL_ROOT}/drive-watchdog:/watchdog:ro

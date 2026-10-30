@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2b3a55"/>
+      <stop offset="1" stop-color="#121a2b"/>
+    </linearGradient>
+    <linearGradient id="ok" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#3ee0b0"/>
+      <stop offset="1" stop-color="#4fb3ff"/>
+    </linearGradient>
+    <linearGradient id="hot" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffc24a"/>
+      <stop offset="1" stop-color="#ff7a45"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" fill="url(#bg)"/>
+  <!-- four drive bars: tracks, then fills -->
+  <g fill="#ffffff" fill-opacity="0.12">
+    <rect x="48" y="58"  width="160" height="22" rx="11"/>
+    <rect x="48" y="98"  width="160" height="22" rx="11"/>
+    <rect x="48" y="138" width="160" height="22" rx="11"/>
+    <rect x="48" y="178" width="160" height="22" rx="11"/>
+  </g>
+  <rect x="48" y="58"  width="78"  height="22" rx="11" fill="url(#ok)"/>
+  <rect x="48" y="98"  width="78"  height="22" rx="11" fill="url(#ok)"/>
+  <rect x="48" y="138" width="92"  height="22" rx="11" fill="url(#ok)"/>
+  <rect x="48" y="178" width="152" height="22" rx="11" fill="url(#hot)"/>
+</svg>

@@ -2,7 +2,8 @@ manifestVersion: 1
 id: matt-drive-stats
 category: utilities
 name: Drive Stats
-version: "1.3.1"
+version: "1.4.0"
+icon: https://cdn.jsdelivr.net/gh/amplastictech/umbrel-drive-stats@main/matt-drive-stats/icon.svg
 tagline: Usage of every drive on your Umbrel, right on the home screen
 description: >-
   Shows the name, percent used and free space of your main drive and every
@@ -19,6 +20,24 @@ path: ""
 defaultUsername: ""
 defaultPassword: ""
 widgets:
+  - id: "status"
+    type: "three-stats"
+    refresh: "30s"
+    endpoint: "web:8080/widgets/status"
+    link: ""
+    example:
+      type: "three-stats"
+      link: ""
+      items:
+        - icon: "shield-check"
+          subtext: "Watchdog"
+          text: "OK"
+        - icon: "clock"
+          subtext: "Last check"
+          text: "just now"
+        - icon: "copy"
+          subtext: "Mirror"
+          text: "OK · 4h ago"
   - id: "bars"
     type: "four-stats"
     refresh: "30s"
