@@ -1,6 +1,7 @@
 #!/bin/bash
 # drive-watchdog: keeps Matt's Umbrel bind mounts, fstab lines and nightly
-# Seagate mirror in place, and stops apps before they write to the main SSD.
+# Seagate mirror in place, stops apps before they write to the main SSD, and
+# keeps qBittorrent's Mullvad VPN settings in place after app updates.
 #
 #   sudo bash drive-watchdog.sh install   install/repair (also re-run after umbrelOS updates)
 #   sudo bash drive-watchdog.sh run       one check-and-fix pass (what the timer runs)
@@ -22,6 +23,10 @@ LOG="$HOMEDIR/drive-watchdog.log"
 LOCK="${DW_LOCK:-/run/drive-watchdog.lock}"
 FSTAB="$ETC/fstab"
 UNITDIR="$ETC/systemd/system"
+UMBRELD="${DW_UMBRELD:-umbreld}"
+QBT_COMPOSE="$U/app-data/qbittorrent/docker-compose.yml"
+QBT_WG="$U/app-data/qbittorrent/data/config/wireguard/wg0.conf"
+QBT_CONTAINER="qbittorrent_server_1"
 REINSTALL="curl -fsSL https://raw.githubusercontent.com/amplastictech/umbrel-drive-stats/main/watchdog/drive-watchdog.sh -o ~/drive-watchdog.sh && sudo bash ~/drive-watchdog.sh install"
 
 # name | bind source | bind target | drive mount point | containers that write there
@@ -103,6 +108,7 @@ run_once() {
   fi
 
   repair_config
+  repair_qbt_vpn
   write_status
   trim_log
 }
@@ -192,6 +198,48 @@ WantedBy=timers.target"
   done
 }
 
+# ---------- qBittorrent Mullvad VPN (hotio built-in WireGuard) ----------
+# A qBittorrent app update replaces its compose file and drops the VPN lines.
+# qBittorrent is bound to wg0, so it can't leak meanwhile; this puts the lines
+# back and restarts the app through umbreld so the VPN comes back on.
+# Only active once wg0.conf exists, so it does nothing on Umbrels without it.
+
+qbt_vpn_enabled() { grep -q 'VPN_ENABLED=true' "$QBT_COMPOSE" 2>/dev/null; }
+
+# True if the running container was started without the VPN settings.
+qbt_running_without_vpn() {
+  running "$QBT_CONTAINER" || return 1
+  ! $DOCKER inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$QBT_CONTAINER" 2>/dev/null | grep -qx 'VPN_ENABLED=true'
+}
+
+repair_qbt_vpn() {
+  [ -f "$QBT_COMPOSE" ] && [ -s "$QBT_WG" ] || return 0
+  # Leave a file Umbrel changed in the last minute alone: an app update may be in progress.
+  [ $(( $(date +%s) - $(stat -c %Y "$QBT_COMPOSE") )) -ge 60 ] || return 0
+
+  if ! qbt_vpn_enabled; then
+    sed -i -E -e '/^ *server:/,${s#^( *)- PGID=1000$#&\n\1- VPN_ENABLED=true\n\1- VPN_CONF=wg0\n\1- VPN_PROVIDER=generic\n\1- VPN_NAMESERVERS=wg#}' "$QBT_COMPOSE"
+    grep -q 'NET_ADMIN' "$QBT_COMPOSE" ||
+      sed -i -E -e '/^ *server:/,${s#^( *)restart: on-failure$#&\n\1cap_add:\n\1- NET_ADMIN\n\1sysctls:\n\1- net.ipv4.conf.all.src_valid_mark=1\n\1- net.ipv6.conf.all.disable_ipv6=1#}' "$QBT_COMPOSE"
+    if qbt_vpn_enabled && grep -q 'NET_ADMIN' "$QBT_COMPOSE"; then
+      log "qbittorrent: re-added Mullvad VPN settings (an app update had removed them)"
+    else
+      log "qbittorrent: ERROR could not re-add VPN settings - the app's compose layout changed"
+      return 0
+    fi
+  fi
+
+  # Apply the settings by restarting through umbreld, but only when the
+  # app's drives are in place (otherwise the mount logic above owns it).
+  if qbt_running_without_vpn && all_mounts_ok_for "$QBT_CONTAINER"; then
+    if $UMBRELD client apps.restart.mutate --appId qbittorrent >/dev/null 2>&1; then
+      log "qbittorrent: restarted so the Mullvad VPN is on again"
+    else
+      log "qbittorrent: ERROR restart failed - restart it from the Umbrel homepage"
+    fi
+  fi
+}
+
 # ---------- reporting ----------
 problems() { # prints one line per problem; no root needed
   local entry name src dst drive apps line
@@ -203,6 +251,10 @@ problems() { # prints one line per problem; no root needed
   [ -f "$UNITDIR/drive-watchdog.timer" ] || echo "watchdog timer missing (wiped by an update?)"
   [ -f "$UNITDIR/seagate-mirror.timer" ] || echo "nightly mirror timer missing"
   [ -s "$PENDING" ] && echo "stopped by the watchdog, waiting for a drive: $(sort -u "$PENDING" | tr '\n' ' ')"
+  if [ -f "$QBT_COMPOSE" ] && [ -s "$QBT_WG" ]; then
+    qbt_vpn_enabled || echo "qbittorrent VPN settings missing (watchdog will re-add them)"
+    qbt_running_without_vpn && echo "qbittorrent is running without its VPN (torrents are blocked until it restarts)"
+  fi
   local d
   for d in "$U"/app-data/bitcoin/data/bitcoin.local-* "$U"/home/Downloads/*.local-*; do
     [ -e "$d" ] && echo "stray local data moved aside, review and delete: $d"
@@ -250,5 +302,5 @@ case "${1:-}" in
     run_once ;;
   status) status ;;
   login) login_check ;;
-  *) sed -n '2,11p' "$0" ;;
+  *) sed -n '2,12p' "$0" ;;
 esac
